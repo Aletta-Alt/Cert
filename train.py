@@ -90,6 +90,15 @@ if __name__ == '__main__':
 
     use_gpu = True
     dataset = args['dataset']
+    if not os.path.isdir('./model'):
+        os.mkdir('./model')
+    if not os.path.isdir(f'./model/{args.dataset}'):
+        os.mkdir(f'./model/{args.dataset}')
+    if not os.path.isdir(f'./model/{args.dataset}/{args.wm_shape}'):
+        os.mkdir(f'./model/{args.dataset}/{args.wm_shape}')
+    if not os.path.isdir(f'./model/{args.dataset}/{args.wm_shape}/{args.sigma}'):
+        os.mkdir(f'./model/{args.dataset}/{args.wm_shape}/{args.sigma}')
+
     PREFIX = './saved_model/_%s _%s sigma%s_epoch_switch%s' % (dataset, atk_method, sigma, epoch_switch)
 
     #PREFIX = './saved_model/_%s _%s sigma%s' % (dataset, atk_method, sigma)

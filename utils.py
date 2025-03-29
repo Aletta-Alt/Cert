@@ -1,8 +1,6 @@
 import numpy as np
 import torch
 from sklearn.metrics import roc_auc_score
-from tqdm import tqdm
-from hashlib import sha256
 
 class BinaryDataset(torch.utils.data.Dataset):
     def __init__(self, dataset, pos_lab, neg_lab):
@@ -24,6 +22,41 @@ class BinaryDataset(torch.utils.data.Dataset):
             assert y == self.neg_lab
             y_new = 0
         return X, y_new
+
+class BackdoorDataset(torch.utils.data.Dataset):
+    def __init__(self, dataset, trigger_func, target_class, ratio=None):
+        self.dataset = dataset
+        self.trigger_func = trigger_func
+        self.target_class = target_class
+        if ratio is not None:
+            nontgt_idx = [i for i in range(len(dataset)) if dataset[i][1] != target_class] # Find the classes that does not belong to the target class.
+            self.poison_idx = set(np.random.choice(nontgt_idx, int(len(dataset)*ratio), replace=False)) # Choose the indices for adding Trojan pattern.
+        else:
+            self.poison_idx = None # Add Trojan pattern to all data (usually used in testing).
+
+    def __len__(self,):
+        return len(self.dataset)
+
+    def __getitem__(self, i):
+        X, y = self.dataset[i]
+        if self.poison_idx is not None and i not in self.poison_idx:
+            return X, y, i
+
+        X_new = X.clone()
+        X_new = self.trigger_func(X_new)
+        y_new = self.target_class if self.target_class is not None else y
+        return X_new, y_new, i
+
+class Dataset(torch.utils.data.Dataset):
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __len__(self,):
+        return len(self.dataset)
+
+    def __getitem__(self, i):
+        X, y = self.dataset[i]
+        return X, y, i
 
 class SmoothedDataset(torch.utils.data.Dataset):
     def __init__(self, dataset, sigma):
@@ -151,33 +184,5 @@ def eval_model(model, dataloader, sig, iters_sig, ret_auc=False):
     else:
         return cum_acc / tot , sig
 
-def certificate_over_dataset(model, dataloader, PREFIX, N_m, sigma):
-    model_preds = []
-    labs = []
-    print('_______________________',len(dataloader))
-    for _ in tqdm(range(N_m)):
-        model.load_state_dict(torch.load(PREFIX+'/smoothed_%d.model'%_))
-        hashval = int(sha256(open(PREFIX+'/smoothed_%d.model'%_, 'rb').read()).hexdigest(), 16) % (2**32)
-        model.fix_pert(sigma=sigma, hash_num=hashval)
-        all_pred = np.zeros((0,2))
-        for x_in, y_in, idx in dataloader:
-            pred = torch.sigmoid(model(x_in).squeeze(1)).detach().cpu().numpy()
-            pred = np.stack((1-pred, pred), axis=1)
-            if (_ == 0):
-                labs = labs + list(y_in.numpy())
-            all_pred = np.concatenate([all_pred, pred], axis=0)
-        model_preds.append(all_pred)
-        model.unfix_pert()
 
-    gx = np.array(model_preds).mean(0)
-    print(gx,'____________gx_________________')
-    labs = np.array(labs)
-    pa = gx.max(1)
-    pred_c = gx.argmax(1)
-    print(pred_c,'____________pred_c_________________')
-
-    gx[np.arange(len(pred_c)), pred_c] = -1
-    pb = gx.max(1)
-    is_acc = (pred_c==labs)
-    return pa, pb, is_acc,pred_c,labs
 
