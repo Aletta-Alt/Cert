@@ -30,7 +30,7 @@ Certified Sample-Specific Backdoor Defense
 │   ├── mnist
 │   └── ...
 |
-
+```
 Dataset Preparation
 -
 Make sure the directory `data` follows:
@@ -45,7 +45,7 @@ data
 ├── ImageNet 
 │   ├── train
 │   └── test
-
+```
 📋 Data Download Link:
 
 [MNIST]()
@@ -135,6 +135,8 @@ model
 |                 ├── smoothed_0.model
 │                 └── ...
 |         └── ...
+```
+
 📋 Model Download Link:
 
 [model]()
